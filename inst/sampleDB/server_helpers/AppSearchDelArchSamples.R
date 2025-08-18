@@ -1332,6 +1332,13 @@ observeEvent(input$qpcr_proceed_with_warning, {
 
 check_conflicts <- function(user_selected_rows, standard_values_data, output) {
     tryCatch({
+      message("=== Check Conflicts Function Started ===")
+      message("Number of selected rows: ", nrow(user_selected_rows))
+      message("Selected positions: ", paste(user_selected_rows$Position, collapse = ", "))
+      message("Standard values positions: ", paste(standard_values_data$Position, collapse = ", "))
+      
+      # Both QuantStudio and BioRad use 96-well plates
+      message("Processing 96-well plate data for qPCR export")
 
       con <- init_and_copy_to_db(database, user_selected_rows)
       on.exit(dbDisconnect(con), add = TRUE)
@@ -1342,16 +1349,120 @@ check_conflicts <- function(user_selected_rows, standard_values_data, output) {
       malaria_blood_control_tbl <- con %>% tbl("malaria_blood_control") %>%
         dplyr::rename(malaria_blood_control_id = id)
 
-      # Join with database to get Sample IDs and check for malaria blood control
+      # Step 1: Auto-generate malaria_blood_control_id for CTRL samples
+      auto_generate_control_ids <- function(con, selected_sample_ids) {
+        # Only process CTRL samples that are actually selected for export
+        if (length(selected_sample_ids) == 0) {
+          message("No samples selected for export")
+          return()
+        }
+        
+        # Find CTRL samples from the SELECTED samples that don't have malaria_blood_control_id
+        ctrl_samples <- dbGetQuery(con, sprintf("
+          SELECT DISTINCT 
+            sc.id as sample_id,
+            ss.id as study_subject_id,
+            ss.name as study_code,
+            s.collection_date
+          FROM storage_container sc
+          JOIN specimen s ON sc.specimen_id = s.id
+          JOIN study_subject ss ON s.study_subject_id = ss.id
+          LEFT JOIN malaria_blood_control mbc ON ss.id = mbc.study_subject_id
+          WHERE UPPER(ss.name) = 'CTRL'
+          AND mbc.id IS NULL
+          AND sc.id IN (%s)
+        ", paste(selected_sample_ids, collapse = ",")))
+        
+        # Get or create a default composition for CTRL samples
+        default_composition_id <- dbGetQuery(con, "
+          SELECT id FROM composition 
+          WHERE label = 'CTRL_DEFAULT' 
+          LIMIT 1
+        ")$id
+        
+        if (length(default_composition_id) == 0 || is.na(default_composition_id)) {
+          # Create a default composition for CTRL samples
+          dbExecute(con, "
+            INSERT INTO composition (\"index\", label, legacy) 
+            VALUES (999, 'CTRL_DEFAULT', 0)
+          ")
+          default_composition_id <- dbGetQuery(con, "
+            SELECT id FROM composition 
+            WHERE label = 'CTRL_DEFAULT'
+          ")$id
+          message(sprintf("Created default composition with ID %d for CTRL samples", default_composition_id))
+        }
+        
+        if (nrow(ctrl_samples) > 0) {
+          message(sprintf("Auto-generating malaria_blood_control_id for %d CTRL samples from selected samples", nrow(ctrl_samples)))
+          message(sprintf("Selected sample IDs: %s", paste(selected_sample_ids, collapse = ", ")))
+          message(sprintf("CTRL samples found: %s", paste(ctrl_samples$sample_id, collapse = ", ")))
+          
+          # Get next available ID
+          next_id_query <- "SELECT COALESCE(MAX(id), 0) + 1 FROM malaria_blood_control"
+          next_id <- dbGetQuery(con, next_id_query)[[1]]
+          
+          # Create control entries
+          for (i in 1:nrow(ctrl_samples)) {
+            # Check if the table has created/last_updated columns
+            table_info <- dbGetQuery(con, "PRAGMA table_info(malaria_blood_control)")
+            has_timestamp_cols <- any(table_info$name %in% c("created", "last_updated"))
+            
+            if (has_timestamp_cols) {
+              insert_query <- sprintf("
+                INSERT INTO malaria_blood_control (
+                  id, study_subject_id, density, composition_id, 
+                  created, last_updated
+                ) VALUES (
+                  %d, %d, %s, %d, 
+                  datetime('now'), datetime('now')
+                )",
+                next_id + i - 1,
+                ctrl_samples$study_subject_id[i],
+                "'10000'",  # Default density for CTRL samples
+                default_composition_id  # Use default composition for CTRL samples
+              )
+            } else {
+              insert_query <- sprintf("
+                INSERT INTO malaria_blood_control (
+                  id, study_subject_id, density, composition_id
+                ) VALUES (
+                  %d, %d, %s, %d
+                )",
+                next_id + i - 1,
+                ctrl_samples$study_subject_id[i],
+                "'10000'",  # Default density for CTRL samples
+                default_composition_id  # Use default composition for CTRL samples
+              )
+            }
+            
+            dbExecute(con, insert_query)
+            message(sprintf("Created malaria_blood_control_id %d for sample %d", 
+                          next_id + i - 1, ctrl_samples$sample_id[i]))
+          }
+          
+          # Refresh the malaria_blood_control table reference
+          malaria_blood_control_tbl <<- con %>% tbl("malaria_blood_control")
+        }
+      }
+
+      # Execute the auto-generation with selected sample IDs
+      selected_sample_ids <- user_selected_rows$`Sample ID`
+      auto_generate_control_ids(con, selected_sample_ids)
+
+      # Step 2: Now join with database to get Sample IDs and check for malaria blood control
       linked_samples_data <- tbl(con, "user_data") %>%
         inner_join(con %>% tbl("storage_container"), by = c("Sample ID" = "id")) %>%
         inner_join(specimen_tbl, by = "specimen_id") %>%
         inner_join(study_subject_tbl, by = "study_subject_id") %>%
-        left_join(malaria_blood_control_tbl, by = "study_subject_id") %>%
-        mutate(IsControl = !is.na(malaria_blood_control_id)) %>%
-        select(Position, `Sample ID`, Barcode, density, IsControl, `Specimen Type`, Comment) %>%
+        left_join(con %>% tbl("malaria_blood_control"), by = "study_subject_id") %>%
+        mutate(IsControl = !is.na(id)) %>%
+        select(Position, `Sample ID`, Barcode, density, IsControl, `Specimen Type`, Comment, `Study Code`) %>%
         collect() %>%
-        mutate(`Sample ID` = as.integer(`Sample ID`))
+        mutate(
+          `Sample ID` = as.integer(`Sample ID`),
+          IsControl = IsControl | grepl("^CTRL$", `Study Code`, ignore.case = TRUE)
+        )
 
       # Ensure all 96 wells are present
       all_positions <- paste0(rep(LETTERS[1:8], each = 12), sprintf("%02d", rep(1:12, times = 8)))
@@ -1765,7 +1876,8 @@ check_conflicts <- function(user_selected_rows, standard_values_data, output) {
       return(NULL)
     }
 
-    required_wells <- paste0(rep(LETTERS[1:8], each = 10), sprintf("%02d", rep(1:10, times = 8)))
+    # Both QuantStudio and BioRad use 96-well plates
+    required_wells <- paste0(rep(LETTERS[1:8], each = 12), sprintf("%02d", rep(1:12, times = 8)))
     user_wells <- unique(user.selected.rows$Position)
     missing_wells <- setdiff(required_wells, user_wells)
     
@@ -1787,16 +1899,31 @@ check_conflicts <- function(user_selected_rows, standard_values_data, output) {
 
   # BioRad qPCR Download Logic
   observeEvent(input$download_qpcr_biorad, ignoreInit = TRUE, {
+    message("=== BioRad qPCR Download Process Started ===")
     message(sprintf("Starting qPCR template download process (BioRad)..."))
     showNotification("Fetching data for qPCR template (BioRad)...", id = "qPCRNotification", type = "message", duration = 5, closeButton = FALSE)
 
     user.filtered.rows <- filtered_data()
     user.selected.rows <- if (length(selected() > 0)) user.filtered.rows[selected(), ] else user.filtered.rows
 
+    message("BioRad Debug - User filtered rows:")
+    message("  Number of rows: ", nrow(user.filtered.rows))
+    message("  Columns: ", paste(names(user.filtered.rows), collapse = ", "))
+    
+    message("BioRad Debug - User selected rows:")
+    message("  Number of rows: ", nrow(user.selected.rows))
+    message("  Selected positions: ", paste(user.selected.rows$Position, collapse = ", "))
+    message("  Selected barcodes: ", paste(user.selected.rows$Barcode, collapse = ", "))
+
     unique_plates <- unique(user.selected.rows$`Plate Name`)
     num_unique_plates <- length(unique_plates)
+    
+    message("BioRad Debug - Plate information:")
+    message("  Unique plates: ", paste(unique_plates, collapse = ", "))
+    message("  Number of unique plates: ", num_unique_plates)
 
     if (num_unique_plates > 1) {
+      message("BioRad Error - Multiple plates detected!")
       showModal(modalDialog(
         title = "Too many plates selected!",
         sprintf("Only one plate is allowed at a time! There were %d plates found in the search table.", num_unique_plates),
@@ -1806,6 +1933,7 @@ check_conflicts <- function(user_selected_rows, standard_values_data, output) {
       return(NULL)
     }
 
+    # Both QuantStudio and BioRad use 96-well plates
     required_wells <- paste0(rep(LETTERS[1:8], each = 12), sprintf("%02d", rep(1:12, times = 8)))
     user_wells <- unique(user.selected.rows$Position)
     missing_wells <- setdiff(required_wells, user_wells)
@@ -1827,8 +1955,16 @@ check_conflicts <- function(user_selected_rows, standard_values_data, output) {
   })
 
   observeEvent(input$biorad_check_conflicts, {
+    message("=== BioRad Check Conflicts Triggered ===")
     user.filtered.rows <- filtered_data()
     user.selected.rows <- if (length(selected() > 0)) user.filtered.rows[selected(), ] else user.filtered.rows
+    
+    message("BioRad Debug - biorad_check_conflicts:")
+    message("  User filtered rows: ", nrow(user.filtered.rows))
+    message("  User selected rows: ", nrow(user.selected.rows))
+    message("  Selected positions: ", paste(user.selected.rows$Position, collapse = ", "))
+    message("  Calling check_conflicts...")
+    
     check_conflicts(user.selected.rows, standard_values(), output)
   })
 }
@@ -2070,6 +2206,27 @@ combine_data <- function(user_data, standard_values, output, linked_samples) {
           arrange(Position)
   }
 
+  # Clean up the data for the layout - remove duplicates and select only needed columns
+  layout_data <- combined_data %>%
+    select(
+      Position,
+      Barcode,
+      `Specimen Type`,
+      IsControl,
+      ActualDensity
+    ) %>%
+    distinct() %>%
+    arrange(Position)
+
+  # Debug: Print the cleaned layout data
+  message("Cleaned layout data:")
+  message("Number of rows: ", nrow(layout_data))
+  message("Columns: ", paste(names(layout_data), collapse = ", "))
+  message("First few positions: ", paste(head(layout_data$Position), collapse = ", "))
+  message("First few barcodes: ", paste(head(layout_data$Barcode), collapse = ", "))
+  message("Sample of data:")
+  print(head(layout_data, 10))
+
   # Generate layout for display and show in a modal with a horizontal legend
   showModal(modalDialog(
       title = "qPCR Plate Layout",
@@ -2087,7 +2244,7 @@ combine_data <- function(user_data, standard_values, output, linked_samples) {
       )
   ))
 
-  generate_layout(combined_data, output)
+  generate_layout(layout_data, output)
 
     # Assuming combined_data is already prepared
   export_data <- combined_data %>%
@@ -2141,27 +2298,45 @@ combine_data <- function(user_data, standard_values, output, linked_samples) {
 
 generate_layout <- function(data, output) {
 
+  # Debug: Print the data structure
+  message("Data passed to generate_layout:")
+  message("Number of rows: ", nrow(data))
+  message("Columns: ", paste(names(data), collapse = ", "))
+  message("First few positions: ", paste(head(data$Position), collapse = ", "))
+  message("First few barcodes: ", paste(head(data$Barcode), collapse = ", "))
+
   # Create empty matrix for 8 rows (A-H) and 12 columns (1-12)
   layout_matrix <- matrix(NA, nrow = 8, ncol = 12, dimnames = list(LETTERS[1:8], sprintf("%02d", 1:12)))
 
   # Populate matrix with data from combined_data
+  message("Populating matrix...")
   for (i in seq_len(nrow(data))) {
     pos <- data$Position[i]
     row <- substr(pos, 1, 1)
     col <- substr(pos, 2, 3)
 
+    message(sprintf("Row %d: Position %s -> Row %s, Col %s, Barcode %s", 
+                   i, pos, row, col, data$Barcode[i]))
+
     if (!is.na(data$Barcode[i]) && data$Barcode[i] != "Blank") {
-      layout_matrix[row, col] <- paste(
+      cell_content <- paste(
         data$Barcode[i],                           # Barcode on the first line
-        data$`Specimen Type`[i],                   # Specimen Type on the second line
-        ifelse(!is.na(data$IsControl[i]) && data$IsControl[i] == 1, 
-               sprintf("%s", data$ActualDensity[i]), ""),  # Actual Density on the third line for controls
+        ifelse(!is.na(data$`Specimen Type`[i]), data$`Specimen Type`[i], ""),  # Specimen Type on the second line
+        ifelse(!is.na(data$IsControl[i]) && data$IsControl[i] == TRUE, 
+               ifelse(!is.na(data$ActualDensity[i]), sprintf("%s", data$ActualDensity[i]), ""), ""),  # Actual Density on the third line for controls
         sep = "\n"  # Separate each element by a new line
       )
+      layout_matrix[row, col] <- cell_content
+      message(sprintf("  -> Set [%s,%s] = '%s'", row, col, cell_content))
     } else {
       layout_matrix[row, col] <- ""  # Leave blank if no Barcode
+      message(sprintf("  -> Set [%s,%s] = '' (blank)", row, col))
     }
   }
+
+  # Debug: Show the populated matrix
+  message("Final matrix:")
+  print(layout_matrix)
 
   # Convert matrix to data frame for reactable
   layout_df <- as.data.frame(layout_matrix, stringsAsFactors = FALSE)
@@ -2172,15 +2347,19 @@ generate_layout <- function(data, output) {
     info <- data %>% filter(Position == position)
     
     # Ensure Barcode and control_present are checked for NA values
-    if (is.na(info$Barcode) || info$Barcode == "Blank" || nrow(info) == 0) {
+    if (nrow(info) == 0 || is.na(info$Barcode) || info$Barcode == "Blank") {
       return("#f5f5f5")  # Grey for blank positions
-    } else if (!is.na(info$IsControl) && info$IsControl == 1) {
+    } else if (!is.na(info$IsControl) && info$IsControl == TRUE) {
       return("#c8e6c9")  # Light green for Controls
     } else {
       return("#fff9c4")  # Light yellow for Samples
     }
   }
 
+  # Debug: Show the data frame being passed to reactable
+  message("Data frame for reactable:")
+  print(layout_df)
+  
   # Adjust cell colors based on linkage status and content
   output$qpcr_layout_table <- renderReactable({
     reactable(
@@ -2188,22 +2367,33 @@ generate_layout <- function(data, output) {
       columns = setNames(
         lapply(names(layout_df), function(col_name) {
           colDef(
-            align = "center", minWidth = 150, headerStyle = list(fontWeight = "bold"),
+            align = "center", 
+            minWidth = 150, 
+            headerStyle = list(fontWeight = "bold"),
             style = function(value, index) {
-              # Determine the full position (e.g., A01, B02) from the row and column names
-              row <- rownames(layout_df)[index]
-              col <- col_name
-              pos <- paste0(row, col)
-              list(
-                background = cell_color(pos),
-                display = "flex",
-                alignItems = "center",
-                justifyContent = "center"
-              )
+              # Get the row name from the data frame
+              row_names <- rownames(layout_df)
+              if (index <= length(row_names)) {
+                row <- row_names[index]
+                pos <- paste0(row, col_name)
+                
+                # Debug: Print the position being processed
+                message(sprintf("Styling cell: row %s, col %s, position %s, value: %s", 
+                              row, col_name, pos, ifelse(is.na(value), "NA", value)))
+                
+                list(
+                  background = cell_color(pos),
+                  display = "flex",
+                  alignItems = "center",
+                  justifyContent = "center"
+                )
+              } else {
+                list(background = "#f5f5f5")
+              }
             }
           )
         }),
-        names(layout_df)  # Ensure the list is named
+        names(layout_df)
       ),
       bordered = TRUE,
       highlight = TRUE,
