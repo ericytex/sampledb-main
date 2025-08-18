@@ -75,26 +75,50 @@ UICSS <- function(){
             color: #ffffff !important;
         }
         
-        /* Force white main content areas */
+        /* EPPIcenter-style main content areas */
         body {
-            background-color: #ffffff !important;
+            background-color: #f8f9fa !important;
             color: #333333 !important;
         }
         
+        /* Main content panel - clean white */
         .main-panel,
-        .content-panel,
-        .sidebar-panel {
+        .content-panel {
             background-color: #ffffff !important;
             color: #333333 !important;
+            border-radius: 6px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            margin: 10px;
+            padding: 20px;
         }
         
-        /* Ensure form areas are white */
+        /* Sidebar panel - light gray background */
+        .sidebar-panel {
+            background-color: #f8f9fa !important;
+            color: #333333 !important;
+            border-right: 1px solid #dee2e6;
+        }
+        
+        /* Form elements - clean white with subtle borders */
         .form-group,
         .form-control,
         .panel,
         .well {
             background-color: #ffffff !important;
             color: #333333 !important;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+        }
+        
+        /* Buttons - EPPIcenter style */
+        .btn-primary {
+            background-color: #18bc9c !important;
+            border-color: #18bc9c !important;
+        }
+        
+        .btn-primary:hover {
+            background-color: #15a085 !important;
+            border-color: #15a085 !important;
         }
       ")
     )
