@@ -29,15 +29,15 @@ get_markdown_path <- function(filename, package_name = "sampleDB") {
 
 my_theme <- bs_theme(
   version = 5,
-  bootswatch = "flatly",
-  primary = "#FF4B4B",
+  bootswatch = "darkly",  # Change to darkly for EPPIcenter's dark theme
+  primary = "#212529",    # Dark primary color like EPPIcenter
   secondary = "#FFF6D0",
   success = "#262730",
   info = "#28A745",
   warning = "#FFC107",
   danger = "#DC3545",
   light = "#F8F9FA",
-  dark = "#212529",           # Darker header bar
+  dark = "#212529",           # Dark header bar like EPPIcenter
   primary_light = "#BFD4F2",
   primary_dark = "#0056B3",
   body_color = "#333333",
