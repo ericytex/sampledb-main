@@ -29,41 +29,7 @@ get_markdown_path <- function(filename, package_name = "sampleDB") {
 
 my_theme <- bs_theme(
   version = 5,
-  bootswatch = "darkly",  # Change to darkly for EPPIcenter's dark theme
-  primary = "#212529",    # Dark primary color like EPPIcenter
-  secondary = "#FFF6D0",
-  success = "#262730",
-  info = "#28A745",
-  warning = "#FFC107",
-  danger = "#DC3545",
-  light = "#F8F9FA",
-  dark = "#212529",           # Dark header bar like EPPIcenter
-  primary_light = "#BFD4F2",
-  primary_dark = "#0056B3",
-  body_color = "#333333",
-  body_bg = "#FFFFFF",
-  text_color = "#333333",
-  link_color = "#007BFF",
-  link_hover_color = "#0056B3",
-  hr_border_color = "#E9ECEF",
-  gray_100 = "#F8F9FA",
-  gray_200 = "#E9ECEF",
-  gray_300 = "#DEE2E6",
-  gray_400 = "#CED4DA",
-  gray_500 = "#ADB5BD",
-  gray_600 = "#6C757D",
-  gray_700 = "#495057",
-  gray_800 = "#343A40",
-  gray_900 = "#212529",
-  input_bg = "#F0F3F5",      # Background color for inputs
-  input_border = "#C3C7CA",  # Border color for inputs
-  input_text = "#495057",    # Text color for inputs
-  active_bg = "#FFA500",     # Orangish highlighting for active elements
-  active_text = "#FFFFFF",   # Text color for active elements
-  tabset_hover_bg = "#FFA500",   # Muted orange for tabset hovering
-  tabset_hover_text = "#212529",  # Text color for tabset hovering
-  base_font = c("'Fira Sans', sans-serif"),  
-  heading_font = c("'Fira Sans', sans-serif") 
+  bootswatch = "darkly"  # Use EPPIcenter's exact dark theme
 )
 
 # Main Shiny App UI

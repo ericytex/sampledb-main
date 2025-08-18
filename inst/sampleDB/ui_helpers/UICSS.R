@@ -49,45 +49,6 @@ UICSS <- function(){
         .dropdown-menu {
             padding: 0;
         }
-        
-        /* Navbar customization */
-        @media (min-width: 992px) {
-            .navbar-expand-lg, .navbar:not(.navbar-expand):not(.navbar-expand-sm):not(.navbar-expand-md):not(.navbar-expand-lg):not(.navbar-expand-xl) {
-                flex-wrap: nowrap;
-                -webkit-flex-wrap: nowrap;
-                justify-content: flex-start;
-                -webkit-justify-content: flex-start;
-            }
-        }
-        
-        .navbar {
-            --bslib-navbar-light-bg: #212529 !important;
-            --bs-navbar-bg: #212529 !important;
-            --bs-navbar-color: #ffffff !important;
-            background-color: #212529 !important;
-            color: #ffffff !important;
-        }
-        
-        .navbar .nav-link,
-        .navbar .nav-item > .nav-link,
-        .navbar-nav > li > a {
-            color: #ffffff !important;
-        }
-        
-        .navbar .nav-link.active,
-        .navbar .nav-item.active > .nav-link,
-        .navbar-nav > .active > a,
-        .navbar-nav > .active > a:focus,
-        .navbar-nav > .active > a:hover {
-            color: #FFA500 !important;
-            background-color: transparent !important;
-        }
-        
-        .navbar .nav-link:hover,
-        .navbar .nav-item > .nav-link:hover,
-        .navbar-nav > li > a:hover {
-            color: #FFA500 !important;
-        }
       ")
     )
   )
