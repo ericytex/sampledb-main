@@ -53,7 +53,7 @@ UIMoveContainerOfSamples <- function(){
       hr(),
       
       # Container actions (Move/Rename/Delete)
-      uiOutput("ContainerAction"),
+      uiOutput("ContainerActionButton"),
       
       hr(),
       
