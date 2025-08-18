@@ -49,6 +49,31 @@ UICSS <- function(){
         .dropdown-menu {
             padding: 0;
         }
+        
+        /* Force dark navbar styling */
+        .navbar {
+            background-color: #212529 !important;
+            color: #ffffff !important;
+        }
+        
+        .navbar .nav-link,
+        .navbar .nav-item > .nav-link,
+        .navbar-nav > li > a {
+            color: #ffffff !important;
+        }
+        
+        .navbar .nav-link.active,
+        .navbar .nav-item.active > .nav-link,
+        .navbar-nav > .active > a {
+            color: #ffffff !important;
+            background-color: transparent !important;
+        }
+        
+        .navbar .nav-link:hover,
+        .navbar .nav-item > .nav-link:hover,
+        .navbar-nav > li > a:hover {
+            color: #ffffff !important;
+        }
       ")
     )
   )

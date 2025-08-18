@@ -29,7 +29,12 @@ get_markdown_path <- function(filename, package_name = "sampleDB") {
 
 my_theme <- bs_theme(
   version = 5,
-  bootswatch = "darkly"  # Use EPPIcenter's exact dark theme
+  bootswatch = "darkly",  # Use EPPIcenter's exact dark theme
+  # Force dark navbar colors
+  "navbar-bg" = "#212529",
+  "navbar-color" = "#ffffff",
+  "navbar-hover-color" = "#ffffff",
+  "navbar-active-color" = "#ffffff"
 )
 
 # Main Shiny App UI
