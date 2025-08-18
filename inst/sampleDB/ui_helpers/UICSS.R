@@ -77,34 +77,33 @@ UICSS <- function(){
         
         /* EPPIcenter-style main content areas */
         body {
-            background-color: #f8f9fa !important;
+            background-color: #f8f9fa !important;  /* Light gray background */
             color: #333333 !important;
         }
         
-        /* Main content panel - clean white */
+        /* Main content panel - subtle background */
         .main-panel,
         .content-panel {
-            background-color: #ffffff !important;
+            background-color: transparent !important;  /* Remove white background */
             color: #333333 !important;
             border-radius: 6px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
             margin: 10px;
             padding: 20px;
         }
         
-        /* Sidebar panel - light gray background */
+        /* Sidebar panel - subtle background */
         .sidebar-panel {
-            background-color: #f8f9fa !important;
+            background-color: transparent !important;  /* Remove white background */
             color: #333333 !important;
             border-right: 1px solid #dee2e6;
         }
         
-        /* Form elements - clean white with subtle borders */
+        /* Form elements - subtle styling without harsh white backgrounds */
         .form-group,
         .form-control,
         .panel,
         .well {
-            background-color: #ffffff !important;
+            background-color: transparent !important;  /* Remove white background */
             color: #333333 !important;
             border: 1px solid #dee2e6;
             border-radius: 4px;

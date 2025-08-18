@@ -35,12 +35,12 @@ my_theme <- bs_theme(
   "navbar-color" = "#ffffff",
   "navbar-hover-color" = "#ffffff",
   "navbar-active-color" = "#ffffff",
-  # Use EPPIcenter's original main content colors
-  "body-bg" = "#ffffff",
+  # Use subtle backgrounds for main content
+  "body-bg" = "#f8f9fa",  # Light gray background
   "body-color" = "#333333",
-  "light" = "#ffffff",
+  "light" = "#f8f9fa",  # Light gray instead of white
   "dark" = "#212529",
-  "primary" = "#FF4B4B",  # Changed to red rgb(255, 75, 75)
+  "primary" = "#FF4B4B",  # Red rgb(255, 75, 75)
   "secondary" = "#95a5a6",
   "success" = "#27ae60",
   "info" = "#3498db",
