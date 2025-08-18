@@ -74,6 +74,28 @@ UICSS <- function(){
         .navbar-nav > li > a:hover {
             color: #ffffff !important;
         }
+        
+        /* Force white main content areas */
+        body {
+            background-color: #ffffff !important;
+            color: #333333 !important;
+        }
+        
+        .main-panel,
+        .content-panel,
+        .sidebar-panel {
+            background-color: #ffffff !important;
+            color: #333333 !important;
+        }
+        
+        /* Ensure form areas are white */
+        .form-group,
+        .form-control,
+        .panel,
+        .well {
+            background-color: #ffffff !important;
+            color: #333333 !important;
+        }
       ")
     )
   )

@@ -34,7 +34,12 @@ my_theme <- bs_theme(
   "navbar-bg" = "#212529",
   "navbar-color" = "#ffffff",
   "navbar-hover-color" = "#ffffff",
-  "navbar-active-color" = "#ffffff"
+  "navbar-active-color" = "#ffffff",
+  # Force white main content areas
+  "body-bg" = "#ffffff",
+  "body-color" = "#333333",
+  "light" = "#ffffff",
+  "dark" = "#212529"
 )
 
 # Main Shiny App UI
