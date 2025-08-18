@@ -29,7 +29,7 @@ get_markdown_path <- function(filename, package_name = "sampleDB") {
 
 my_theme <- bs_theme(
   version = 5,
-  bootswatch = "flatly",  # Use EPPIcenter's clean flatly theme
+  bootswatch = "flatly",  # EPPIcenter's clean flatly theme
   # Force dark navbar colors
   "navbar-bg" = "#212529",
   "navbar-color" = "#ffffff",
@@ -40,7 +40,7 @@ my_theme <- bs_theme(
   "body-color" = "#333333",
   "light" = "#ffffff",
   "dark" = "#212529",
-  "primary" = "#18bc9c",  # EPPIcenter's signature teal
+  "primary" = "#FF4B4B",  # Changed to red rgb(255, 75, 75)
   "secondary" = "#95a5a6",
   "success" = "#27ae60",
   "info" = "#3498db",

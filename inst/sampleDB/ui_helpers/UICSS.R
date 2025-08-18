@@ -110,15 +110,21 @@ UICSS <- function(){
             border-radius: 4px;
         }
         
-        /* Buttons - EPPIcenter style */
+        /* Buttons - Updated to use red primary color */
         .btn-primary {
-            background-color: #18bc9c !important;
-            border-color: #18bc9c !important;
+            background-color: #FF4B4B !important;  /* Red rgb(255, 75, 75) */
+            border-color: #FF4B4B !important;
         }
         
         .btn-primary:hover {
-            background-color: #15a085 !important;
-            border-color: #15a085 !important;
+            background-color: #e63939 !important;  /* Darker red on hover */
+            border-color: #e63939 !important;
+        }
+        
+        /* Preserve sidebar handles - don't override their styling */
+        .sidebar-handle,
+        .sidebar-handle-bottom {
+            /* Keep existing sidebar handle styling */
         }
       ")
     )
