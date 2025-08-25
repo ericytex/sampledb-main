@@ -41,10 +41,12 @@ UICSS <- function(){
         button, .btn {
             background-color: #FFF6D0;
             color: black;
+            border-color: #FFF6D0 !important;
         }
         button:hover, .btn:hover {
             background-color: #FFAC45;
             color: black;
+            border-color: #FFAC45 !important;
         }
         .dropdown-menu {
             padding: 0;
@@ -56,23 +58,46 @@ UICSS <- function(){
             color: #ffffff !important;
         }
         
+        /* Force no underlines on navbar links - using more specific selectors */
         .navbar .nav-link,
         .navbar .nav-item > .nav-link,
-        .navbar-nav > li > a {
+        .navbar-nav > li > a,
+        .navbar-nav .nav-link,
+        .navbar-nav .nav-item .nav-link,
+        .navbar-nav .nav-item > .nav-link,
+        .navbar .navbar-nav .nav-link,
+        .navbar .navbar-nav .nav-item .nav-link {
             color: #ffffff !important;
+            text-decoration: none !important;
+            border-bottom: none !important;
+            box-shadow: none !important;
         }
         
         .navbar .nav-link.active,
         .navbar .nav-item.active > .nav-link,
-        .navbar-nav > .active > a {
-            color: #ffffff !important;
+        .navbar-nav > .active > a,
+        .navbar-nav .nav-link.active,
+        .navbar-nav .nav-item.active .nav-link,
+        .navbar .navbar-nav .nav-link.active,
+        .navbar .navbar-nav .nav-item.active .nav-link {
+            color: #FF4B4B !important;
             background-color: transparent !important;
+            text-decoration: none !important;
+            border-bottom: none !important;
+            box-shadow: none !important;
         }
         
         .navbar .nav-link:hover,
         .navbar .nav-item > .nav-link:hover,
-        .navbar-nav > li > a:hover {
-            color: #ffffff !important;
+        .navbar-nav > li > a:hover,
+        .navbar-nav .nav-link:hover,
+        .navbar-nav .nav-item .nav-link:hover,
+        .navbar .navbar-nav .nav-link:hover,
+        .navbar .navbar-nav .nav-item .nav-link:hover {
+            color: #FF4B4B !important;
+            text-decoration: none !important;
+            border-bottom: none !important;
+            box-shadow: none !important;
         }
         
         /* EPPIcenter-style main content areas */
@@ -90,6 +115,25 @@ UICSS <- function(){
             margin: 10px;
             padding: 20px;
         }
+        .rt-text-content {
+            overflow: visible !important;
+            white-space: nowrap !important;
+            text-overflow: ellipsis !important;
+        }
+        
+        /* Target all reactable cells */
+        .Reactable .rt-text-content {
+            overflow: visible !important;
+            white-space: nowrap !important;
+            text-overflow: ellipsis !important;
+        }
+
+        /* Or target specific table by ID */
+        #DelArchSearchResultsTable .rt-text-content {
+            overflow: visible !important;
+            white-space: nowrap !important;
+            text-overflow: ellipsis !important;
+        }
         
         /* Sidebar panel - subtle background */
         .sidebar-panel {
@@ -105,19 +149,19 @@ UICSS <- function(){
         .well {
             background-color: transparent !important;  /* Remove white background */
             color: #333333 !important;
-            border: 1px solid #dee2e6;
+            
             border-radius: 4px;
         }
         
         /* Buttons - Updated to use red primary color */
         .btn-primary {
-            background-color: #FF4B4B !important;  /* Red rgb(255, 75, 75) */
-            border-color: #FF4B4B !important;
+            background-color: #FFF6D0 !important;  /* Red rgb(255, 75, 75) */
+            border-color: #FFF6D0 !important;
         }
         
         .btn-primary:hover {
-            background-color: #e63939 !important;  /* Darker red on hover */
-            border-color: #e63939 !important;
+            background-color: #FFAC45 !important;  /* Darker red on hover */
+            border-color: #FFAC45 !important;
         }
         
         /* Preserve sidebar handles - don't override their styling */
@@ -125,6 +169,7 @@ UICSS <- function(){
         .sidebar-handle-bottom {
             /* Keep existing sidebar handle styling */
         }
+        
       ")
     )
   )

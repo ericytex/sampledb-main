@@ -33,8 +33,10 @@ my_theme <- bs_theme(
   # Force dark navbar colors
   "navbar-bg" = "#212529",
   "navbar-color" = "#ffffff",
-  "navbar-hover-color" = "#ffffff",
-  "navbar-active-color" = "#ffffff",
+  "navbar-hover-color" = "#FF4B4B",
+  "navbar-active-color" = "#FF4B4B",
+  "navbar-link-decoration" = "none",        # ← Removes underline
+  "navbar-link-hover-decoration" = "none",  # ← Removes underline on hover
   # Use subtle backgrounds for main content
   "body-bg" = "#f8f9fa",  # Light gray background
   "body-color" = "#333333",

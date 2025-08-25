@@ -169,7 +169,7 @@ AppSearchDelArchSamples <- function(session, input, database, output, dbUpdateEv
     }
   })
 
-  # Your main observe block using most_recent_data()
+ # Your main observe block using most_recent_data()
   observe({
     output$DelArchSearchResultsTable <- renderReactable({
       # If most_recent_data is null (e.g. both filtered_data and study_subject_search_results are null initially)
@@ -1325,8 +1325,7 @@ AppSearchDelArchSamples <- function(session, input, database, output, dbUpdateEv
       return(NULL)
     }
 
-    # Both QuantStudio and BioRad use 96-well plates
-    required_wells <- paste0(rep(LETTERS[1:8], each = 12), sprintf("%02d", rep(1:12, times = 8)))
+    required_wells <- paste0(rep(LETTERS[1:8], each = 10), sprintf("%02d", rep(1:10, times = 8)))
     user_wells <- unique(user.selected.rows$Position)
     missing_wells <- setdiff(required_wells, user_wells)
     
@@ -1344,6 +1343,29 @@ AppSearchDelArchSamples <- function(session, input, database, output, dbUpdateEv
     } else {
       check_conflicts(user.selected.rows, standard_values(), output)
     }
+  })
+
+  observeEvent(input$qpcr_check_conflicts, {
+    user.filtered.rows <- filtered_data()
+    user.selected.rows <- if (length(selected() > 0)) user.filtered.rows[selected(), ] else user.filtered.rows
+    
+    check_conflicts(user.selected.rows, standard_values(), output)
+  })
+
+  observeEvent(input$qpcr_proceed_with_warning, {
+    # Call the combine function after the user chooses to proceed with the warning
+    user.filtered.rows <- filtered_data()
+    user.selected.rows <- if (length(selected() > 0)) user.filtered.rows[selected(), ] else user.filtered.rows
+
+    # Assuming linked_samples contains the updated data
+    final_data <- combine_data(user.selected.rows, standard_values(), output, linked_samples())
+    qpcr_final_data(
+      list(
+        PlateName = unique(user.selected.rows$`Plate Name`),
+        FinalData = final_data
+      )
+    )
+    removeModal()
   })
 
   # BioRad qPCR Download Logic
@@ -1463,6 +1485,26 @@ check_conflicts <- function(user_selected_rows, standard_values_data, output) {
         collect() %>%
         mutate(`Sample ID` = as.integer(`Sample ID`))
 
+      # ADDITIONAL CONTROL RECOGNITION: Mark samples in standard control positions as controls
+      message("=== POSITION-BASED CONTROL RECOGNITION ===")
+      message("Standard control positions: ", paste(standard_values_data$Position, collapse = ", "))
+      message("Before position-based recognition:")
+      message("  Samples in standard positions: ", paste(linked_samples_data$Position[linked_samples_data$Position %in% standard_values_data$Position], collapse = ", "))
+      message("  IsControl values: ", paste(linked_samples_data$IsControl[linked_samples_data$Position %in% standard_values_data$Position], collapse = ", "))
+      
+      linked_samples_data <- linked_samples_data %>%
+        mutate(
+          IsControl = ifelse(
+            Position %in% standard_values_data$Position, 
+            TRUE, 
+            IsControl
+          )
+        )
+      
+      message("After position-based recognition:")
+      message("  IsControl values: ", paste(linked_samples_data$IsControl[linked_samples_data$Position %in% standard_values_data$Position], collapse = ", "))
+      message("=== END POSITION-BASED CONTROL RECOGNITION ===")
+
       # Ensure all 96 wells are present
       all_positions <- paste0(rep(LETTERS[1:8], each = 12), sprintf("%02d", rep(1:12, times = 8)))
       missing_positions <- setdiff(all_positions, linked_samples_data$Position)
@@ -1532,18 +1574,29 @@ check_conflicts <- function(user_selected_rows, standard_values_data, output) {
       # Validation logic, accounting for flexibility in row G and column 11
       validation_errors <- ValidationErrorCollection$new(user_data = linked_samples_data)
 
+      # NOTE: Column 12 controls are now allowed for qPCR protocols
       if (nrow(controls_in_col_12) > 0) {
-        problematic_col_12_wells <- controls_in_col_12 %>%
-          select(RowNumber, Position, Barcode)
-
-        error_data <- ErrorData$new(
-          description = "Column 12 must not contain any controls.",
-          data_frame = problematic_col_12_wells
-        )
-        validation_errors$add_error(error_data)
+        message("=== COLUMN 12 CONTROLS DETECTED ===")
+        message("Controls found in Column 12: ", paste(controls_in_col_12$Position, collapse = ", "))
+        message("This is now allowed for qPCR protocols.")
+        message("=== END COLUMN 12 CONTROLS INFO ===")
+        
+        # No longer adding validation error - controls in Column 12 are allowed
+        # The previous error "Column 12 must not contain any controls" has been removed
       }
 
+      # DEBUG LOGGING: Show what's being validated
+      message("=== VALIDATION DEBUG LOGGING ===")
+      message("Total samples: ", nrow(linked_samples_data))
+      message("Samples in standard positions: ", paste(linked_samples_data$Position[linked_samples_data$Position %in% standard_values_data$Position], collapse = ", "))
+      message("IsControl status for standard positions:")
+      standard_pos_samples <- linked_samples_data %>% filter(Position %in% standard_values_data$Position)
+      for(i in 1:nrow(standard_pos_samples)) {
+        message("  ", standard_pos_samples$Position[i], ": IsControl = ", standard_pos_samples$IsControl[i], ", Barcode = ", standard_pos_samples$Barcode[i])
+      }
+      
       # Check for non-control samples in standard positions (excluding blanks and row G, F and H)
+      message("Checking for non-control samples in standard positions...")
       # Samples will be allowed in Row G and F though.
       non_control_conflicts <- linked_samples_data %>%
         filter(!IsControl & Position %in% standard_values_data$Position & !is.na(`Sample ID`) & !grepl("^(G|F)", Position)) %>%
@@ -1557,6 +1610,14 @@ check_conflicts <- function(user_selected_rows, standard_values_data, output) {
         )
         validation_errors$add_error(error_data)
       }
+      message("Non-control conflicts found: ", nrow(non_control_conflicts))
+      if(nrow(non_control_conflicts) > 0) {
+        message("Conflict details:")
+        for(i in 1:nrow(non_control_conflicts)) {
+          message("  Row ", non_control_conflicts$RowNumber[i], ": Position ", non_control_conflicts$Position[i], ", Barcode ", non_control_conflicts$Barcode[i])
+        }
+      }
+      message("=== END VALIDATION DEBUG LOGGING ===")
 
       # Check for empty wells in standard positions (except NTC, G and row H)
       # Only need to check column 11 here as column 12 is just a copy.
@@ -1575,13 +1636,27 @@ check_conflicts <- function(user_selected_rows, standard_values_data, output) {
 
       # If validation errors are found, stop and display the modal
       if (validation_errors$length() > 0) {
+        message("=== VALIDATION ERRORS DETECTED ===")
+        message("Number of validation errors: ", validation_errors$length())
         stop_validation_error("Validation errors detected.", validation_errors)
+      } else {
+        message("=== VALIDATION PASSED SUCCESSFULLY ===")
+        message("All validation checks passed. Proceeding to qPCR template generation...")
       }
 
       # Soft warning for density mismatch
+      message("=== CHECKING FOR DENSITY MISMATCHES ===")
       control_conflicts <- linked_samples_data %>%
         filter(grepl("11$", Position) & IsControl & !is.na(ActualDensity) & ExpectedDensity != "0" & ActualDensity != ExpectedDensity) %>%
         select(RowNumber, Position, `Sample ID`, ExpectedDensity, ActualDensity)
+      
+      if (nrow(control_conflicts) > 0) {
+        message("Density mismatches found: ", nrow(control_conflicts))
+        message("Positions with mismatches: ", paste(control_conflicts$Position, collapse = ", "))
+      } else {
+        message("No density mismatches detected.")
+      }
+      message("=== END DENSITY MISMATCH CHECK ===")
 
       if (nrow(control_conflicts) > 0) {
         # Show modal with density mismatch information
