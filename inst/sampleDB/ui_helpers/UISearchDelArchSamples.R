@@ -96,8 +96,8 @@ UISearchDelArchSamples <- function() {
       sidebar = sidebar(
         title = "Sample Archival & Deletion Workflows", 
         position = "right",
-        open = FALSE,
-        border = FALSE,
+        open = TRUE,
+        border = TRUE,
         tags$p("Select samples to get started. In all workflows, users will be asked to confirm that they have selected the correct samples."),
         tags$h4("Sample Archival"),
         tags$p("Select samples above that you wish to archive. This will remove samples from plates in the database so that they may be replaced with", tags$em("In Use"), "samples."),
@@ -155,7 +155,8 @@ UISearchDelArchSamples <- function() {
               ),
               tags$ul(
                 class = "dropdown-menu",
-                tags$li(actionButton("download_qpcr", "Download qPCR Format", class = "dropdown-item"))
+                tags$li(actionButton("download_qpcr_quantstudio", "Download qPCR Format (QuantStudio)", class = "dropdown-item")),
+                tags$li(actionButton("download_qpcr_biorad", "Download qPCR Format (BioRad)", class = "dropdown-item"))
               )
             ),
             actionButton("editComment", "Edit Comment", style = "margin-left: 10px;")  

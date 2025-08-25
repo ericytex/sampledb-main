@@ -169,7 +169,7 @@ AppSearchDelArchSamples <- function(session, input, database, output, dbUpdateEv
     }
   })
 
-  # Your main observe block using most_recent_data()
+ # Your main observe block using most_recent_data()
   observe({
     output$DelArchSearchResultsTable <- renderReactable({
       # If most_recent_data is null (e.g. both filtered_data and study_subject_search_results are null initially)
@@ -1217,7 +1217,7 @@ AppSearchDelArchSamples <- function(session, input, database, output, dbUpdateEv
     output$download_qpcr_csv <- downloadHandler(
       filename = function() {
         plate_name <- qpcr_final_data()$PlateName
-        paste0("qPCR_", plate_name, "_", Sys.Date(), ".txt")
+        paste0("qPCR_QuantStudio_", plate_name, "_", Sys.Date(), ".txt")
       },
       content = function(file) {
         output_header <- matrix(
@@ -1252,6 +1252,44 @@ AppSearchDelArchSamples <- function(session, input, database, output, dbUpdateEv
     )
   })
 
+  # BioRad qPCR Download Handler
+  output$download_qpcr_biorad_csv <- downloadHandler(
+    filename = function() {
+      plate_name <- qpcr_final_data()$PlateName
+      paste0("qPCR_BioRad_", plate_name, "_", Sys.Date(), ".txt")
+    },
+    content = function(file) {
+      output_header <- matrix(
+        c(
+          "[Sample Setup]"          
+        ),
+        byrow = TRUE
+      )
+
+      qpcr_names <- matrix(colnames(qpcr_final_data()$FinalData), byrow = FALSE, nrow = 1)
+      final_data <- qpcr_final_data()$FinalData
+      colnames(final_data) <- NULL
+
+      output_header_tbl <- as.matrix(output_header)
+      qpcr_names <- as.matrix(qpcr_names)
+      final_data_tbl <- as.matrix(final_data)
+
+      # Determine the maximum number of columns needed
+      max_cols <- max(ncol(output_header_tbl), ncol(qpcr_names), ncol(final_data_tbl))
+
+      # Create a matrix with enough rows and columns, fill with NA initially
+      final_matrix <- matrix(NA, nrow = nrow(output_header_tbl) + nrow(qpcr_names) + nrow(final_data_tbl), ncol = max_cols)
+
+      # Copy each matrix into the final matrix
+      final_matrix[1:nrow(output_header_tbl), 1:ncol(output_header_tbl)] <- output_header_tbl
+      final_matrix[(nrow(output_header_tbl) + 1):(nrow(output_header_tbl) + nrow(qpcr_names)), 1:ncol(qpcr_names)] <- qpcr_names
+      final_matrix[(nrow(output_header_tbl) + nrow(qpcr_names) + 1):nrow(final_matrix), 1:ncol(final_data_tbl)] <- final_data_tbl
+
+      # Write the matrix to a text file with tab delimitations
+      write.table(final_matrix, file=file, row.names=FALSE, col.names=FALSE, na = "", quote = FALSE, sep = "\t")
+    }
+  )
+
   # Define standard values globally or inside a reactive expression
   standard_values <- reactive({
     data.frame(
@@ -1266,19 +1304,17 @@ AppSearchDelArchSamples <- function(session, input, database, output, dbUpdateEv
   qpcr_final_data <- reactiveVal()
   linked_samples <- reactiveVal(NULL)
 
-  observeEvent(input$download_qpcr, ignoreInit = TRUE, {
-    message(sprintf("Starting qPCR template download process..."))
+  # QuantStudio qPCR Download Logic
+  observeEvent(input$download_qpcr_quantstudio, ignoreInit = TRUE, {
+    message(sprintf("Starting qPCR template download process (QuantStudio)..."))
     showNotification("Fetching data for qPCR template...", id = "qPCRNotification", type = "message", duration = 5, closeButton = FALSE)
 
-    # Assuming `filtered_data` is a reactive expression returning the filtered data
     user.filtered.rows <- filtered_data()
     user.selected.rows <- if (length(selected() > 0)) user.filtered.rows[selected(), ] else user.filtered.rows
 
-    # Group by platename and check for samples in wells A1-E10
     unique_plates <- unique(user.selected.rows$`Plate Name`)
     num_unique_plates <- length(unique_plates)
 
-    # If we have more than one plate selected, raise an error
     if (num_unique_plates > 1) {
       showModal(modalDialog(
         title = "Too many plates selected!",
@@ -1289,13 +1325,11 @@ AppSearchDelArchSamples <- function(session, input, database, output, dbUpdateEv
       return(NULL)
     }
 
-    # Check for missing wells in user data (modify as per your criteria)
     required_wells <- paste0(rep(LETTERS[1:8], each = 10), sprintf("%02d", rep(1:10, times = 8)))
     user_wells <- unique(user.selected.rows$Position)
     missing_wells <- setdiff(required_wells, user_wells)
     
     if (length(missing_wells) > 0) {
-      # Show modal with missing wells information
       showModal(modalDialog(
         title = "Missing Wells Detected",
         paste("The following wells are missing samples:", paste(missing_wells, collapse = ", ")),
@@ -1309,7 +1343,101 @@ AppSearchDelArchSamples <- function(session, input, database, output, dbUpdateEv
     } else {
       check_conflicts(user.selected.rows, standard_values(), output)
     }
-})
+  })
+
+  observeEvent(input$qpcr_check_conflicts, {
+    user.filtered.rows <- filtered_data()
+    user.selected.rows <- if (length(selected() > 0)) user.filtered.rows[selected(), ] else user.filtered.rows
+    
+    check_conflicts(user.selected.rows, standard_values(), output)
+  })
+
+  observeEvent(input$qpcr_proceed_with_warning, {
+    # Call the combine function after the user chooses to proceed with the warning
+    user.filtered.rows <- filtered_data()
+    user.selected.rows <- if (length(selected() > 0)) user.filtered.rows[selected(), ] else user.filtered.rows
+
+    # Assuming linked_samples contains the updated data
+    final_data <- combine_data(user.selected.rows, standard_values(), output, linked_samples())
+    qpcr_final_data(
+      list(
+        PlateName = unique(user.selected.rows$`Plate Name`),
+        FinalData = final_data
+      )
+    )
+    removeModal()
+  })
+
+  # BioRad qPCR Download Logic
+  observeEvent(input$download_qpcr_biorad, ignoreInit = TRUE, {
+    message("=== BioRad qPCR Download Process Started ===")
+    message(sprintf("Starting qPCR template download process (BioRad)..."))
+    showNotification("Fetching data for qPCR template (BioRad)...", id = "qPCRNotification", type = "message", duration = 5, closeButton = FALSE)
+
+    user.filtered.rows <- filtered_data()
+    user.selected.rows <- if (length(selected() > 0)) user.filtered.rows[selected(), ] else user.filtered.rows
+
+    message("BioRad Debug - User filtered rows:")
+    message("  Number of rows: ", nrow(user.filtered.rows))
+    message("  Columns: ", paste(names(user.filtered.rows), collapse = ", "))
+    
+    message("BioRad Debug - User selected rows:")
+    message("  Number of rows: ", nrow(user.selected.rows))
+    message("  Selected positions: ", paste(user.selected.rows$Position, collapse = ", "))
+    message("  Selected barcodes: ", paste(user.selected.rows$Barcode, collapse = ", "))
+
+    unique_plates <- unique(user.selected.rows$`Plate Name`)
+    num_unique_plates <- length(unique_plates)
+    
+    message("BioRad Debug - Plate information:")
+    message("  Unique plates: ", paste(unique_plates, collapse = ", "))
+    message("  Number of unique plates: ", num_unique_plates)
+
+    if (num_unique_plates > 1) {
+      message("BioRad Error - Multiple plates detected!")
+      showModal(modalDialog(
+        title = "Too many plates selected!",
+        sprintf("Only one plate is allowed at a time! There were %d plates found in the search table.", num_unique_plates),
+        easyClose = TRUE,
+        footer = modalButton("OK")
+      ))
+      return(NULL)
+    }
+
+    # Both QuantStudio and BioRad use 96-well plates
+    required_wells <- paste0(rep(LETTERS[1:8], each = 12), sprintf("%02d", rep(1:12, times = 8)))
+    user_wells <- unique(user.selected.rows$Position)
+    missing_wells <- setdiff(required_wells, user_wells)
+    
+    if (length(missing_wells) > 0) {
+      showModal(modalDialog(
+        title = "Missing Wells Detected",
+        paste("The following wells are missing samples:", paste(missing_wells, collapse = ", ")),
+        paste("Is this okay?"),
+        easyClose = TRUE,
+        footer = tagList(
+          actionButton("biorad_check_conflicts", "Yes, continue!"),
+          modalButton("biorad_exit")
+        )
+      ))
+    } else {
+      check_conflicts(user.selected.rows, standard_values(), output)
+    }
+  })
+
+  observeEvent(input$biorad_check_conflicts, {
+    message("=== BioRad Check Conflicts Triggered ===")
+    user.filtered.rows <- filtered_data()
+    user.selected.rows <- if (length(selected() > 0)) user.filtered.rows[selected(), ] else user.filtered.rows
+    
+    message("BioRad Debug - biorad_check_conflicts:")
+    message("  User filtered rows: ", nrow(user.filtered.rows))
+    message("  User selected rows: ", nrow(user.selected.rows))
+    message("  Selected positions: ", paste(user.selected.rows$Position, collapse = ", "))
+    message("  Calling check_conflicts...")
+    
+    check_conflicts(user.selected.rows, standard_values(), output)
+  })
 
 observeEvent(input$qpcr_check_conflicts, {
     user.filtered.rows <- filtered_data()
@@ -1356,6 +1484,26 @@ check_conflicts <- function(user_selected_rows, standard_values_data, output) {
         select(Position, `Sample ID`, Barcode, density, IsControl, `Specimen Type`, Comment) %>%
         collect() %>%
         mutate(`Sample ID` = as.integer(`Sample ID`))
+
+      # ADDITIONAL CONTROL RECOGNITION: Mark samples in standard control positions as controls
+      message("=== POSITION-BASED CONTROL RECOGNITION ===")
+      message("Standard control positions: ", paste(standard_values_data$Position, collapse = ", "))
+      message("Before position-based recognition:")
+      message("  Samples in standard positions: ", paste(linked_samples_data$Position[linked_samples_data$Position %in% standard_values_data$Position], collapse = ", "))
+      message("  IsControl values: ", paste(linked_samples_data$IsControl[linked_samples_data$Position %in% standard_values_data$Position], collapse = ", "))
+      
+      linked_samples_data <- linked_samples_data %>%
+        mutate(
+          IsControl = ifelse(
+            Position %in% standard_values_data$Position, 
+            TRUE, 
+            IsControl
+          )
+        )
+      
+      message("After position-based recognition:")
+      message("  IsControl values: ", paste(linked_samples_data$IsControl[linked_samples_data$Position %in% standard_values_data$Position], collapse = ", "))
+      message("=== END POSITION-BASED CONTROL RECOGNITION ===")
 
       # Ensure all 96 wells are present
       all_positions <- paste0(rep(LETTERS[1:8], each = 12), sprintf("%02d", rep(1:12, times = 8)))
@@ -1426,18 +1574,29 @@ check_conflicts <- function(user_selected_rows, standard_values_data, output) {
       # Validation logic, accounting for flexibility in row G and column 11
       validation_errors <- ValidationErrorCollection$new(user_data = linked_samples_data)
 
+      # NOTE: Column 12 controls are now allowed for qPCR protocols
       if (nrow(controls_in_col_12) > 0) {
-        problematic_col_12_wells <- controls_in_col_12 %>%
-          select(RowNumber, Position, Barcode)
-
-        error_data <- ErrorData$new(
-          description = "Column 12 must not contain any controls.",
-          data_frame = problematic_col_12_wells
-        )
-        validation_errors$add_error(error_data)
+        message("=== COLUMN 12 CONTROLS DETECTED ===")
+        message("Controls found in Column 12: ", paste(controls_in_col_12$Position, collapse = ", "))
+        message("This is now allowed for qPCR protocols.")
+        message("=== END COLUMN 12 CONTROLS INFO ===")
+        
+        # No longer adding validation error - controls in Column 12 are allowed
+        # The previous error "Column 12 must not contain any controls" has been removed
       }
 
+      # DEBUG LOGGING: Show what's being validated
+      message("=== VALIDATION DEBUG LOGGING ===")
+      message("Total samples: ", nrow(linked_samples_data))
+      message("Samples in standard positions: ", paste(linked_samples_data$Position[linked_samples_data$Position %in% standard_values_data$Position], collapse = ", "))
+      message("IsControl status for standard positions:")
+      standard_pos_samples <- linked_samples_data %>% filter(Position %in% standard_values_data$Position)
+      for(i in 1:nrow(standard_pos_samples)) {
+        message("  ", standard_pos_samples$Position[i], ": IsControl = ", standard_pos_samples$IsControl[i], ", Barcode = ", standard_pos_samples$Barcode[i])
+      }
+      
       # Check for non-control samples in standard positions (excluding blanks and row G, F and H)
+      message("Checking for non-control samples in standard positions...")
       # Samples will be allowed in Row G and F though.
       non_control_conflicts <- linked_samples_data %>%
         filter(!IsControl & Position %in% standard_values_data$Position & !is.na(`Sample ID`) & !grepl("^(G|F)", Position)) %>%
@@ -1451,6 +1610,14 @@ check_conflicts <- function(user_selected_rows, standard_values_data, output) {
         )
         validation_errors$add_error(error_data)
       }
+      message("Non-control conflicts found: ", nrow(non_control_conflicts))
+      if(nrow(non_control_conflicts) > 0) {
+        message("Conflict details:")
+        for(i in 1:nrow(non_control_conflicts)) {
+          message("  Row ", non_control_conflicts$RowNumber[i], ": Position ", non_control_conflicts$Position[i], ", Barcode ", non_control_conflicts$Barcode[i])
+        }
+      }
+      message("=== END VALIDATION DEBUG LOGGING ===")
 
       # Check for empty wells in standard positions (except NTC, G and row H)
       # Only need to check column 11 here as column 12 is just a copy.
@@ -1469,13 +1636,27 @@ check_conflicts <- function(user_selected_rows, standard_values_data, output) {
 
       # If validation errors are found, stop and display the modal
       if (validation_errors$length() > 0) {
+        message("=== VALIDATION ERRORS DETECTED ===")
+        message("Number of validation errors: ", validation_errors$length())
         stop_validation_error("Validation errors detected.", validation_errors)
+      } else {
+        message("=== VALIDATION PASSED SUCCESSFULLY ===")
+        message("All validation checks passed. Proceeding to qPCR template generation...")
       }
 
       # Soft warning for density mismatch
+      message("=== CHECKING FOR DENSITY MISMATCHES ===")
       control_conflicts <- linked_samples_data %>%
         filter(grepl("11$", Position) & IsControl & !is.na(ActualDensity) & ExpectedDensity != "0" & ActualDensity != ExpectedDensity) %>%
         select(RowNumber, Position, `Sample ID`, ExpectedDensity, ActualDensity)
+      
+      if (nrow(control_conflicts) > 0) {
+        message("Density mismatches found: ", nrow(control_conflicts))
+        message("Positions with mismatches: ", paste(control_conflicts$Position, collapse = ", "))
+      } else {
+        message("No density mismatches detected.")
+      }
+      message("=== END DENSITY MISMATCH CHECK ===")
 
       if (nrow(control_conflicts) > 0) {
         # Show modal with density mismatch information
