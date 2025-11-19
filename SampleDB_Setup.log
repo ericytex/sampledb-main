@@ -1,0 +1,7 @@
+[INFO] SampleDB_Setup() called
+[INFO] Initial Parameters - env: TRUE db: TRUE server: FALSE reset_env_variables: FALSE
+[INFO] pkgname set to: sampleDB site_install set to: FALSE
+[INFO] Expected versions loaded
+[INFO] Running setup_environment()
+[INFO] Running setup_database()
+[INFO] SampleDB_Setup() completed
