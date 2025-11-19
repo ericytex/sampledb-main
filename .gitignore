@@ -14,3 +14,4 @@ site_library
 the_database
 
 .lintr
+*.md

@@ -1,6 +1,6 @@
 Package: sampleDB
 Title: Organize your Wetlab Samples with sampleDB
-Version: 2.7.1
+Version: 2.0.0
 Authors@R: c(
     person("Brian", "Palmer", , "brian.palmer@ucsf.edu", role = c("aut", "cre")),
     person(given = "Severiano",

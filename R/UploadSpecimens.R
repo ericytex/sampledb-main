@@ -245,7 +245,7 @@ upload_extracted_dna <- function(user_data, control_extraction, database = Sys.g
           eval.specimen_id <- filter(CheckTableTx(conn = conn, "specimen"),
                                      study_subject_id == eval.study_subject_id,
                                      specimen_type_id == eval.specimen_type_id,
-                                     is.na(collection_date))$id
+                                     is.na(eval.collection_date))$id
 
         }else{
           eval.specimen_id <- filter(CheckTableTx(conn = conn, "specimen"),

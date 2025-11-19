@@ -309,7 +309,7 @@ EditWetlabContainers <- function(session, input, database, output, dbUpdateEvent
       shinyjs::hide("ContainerManifestNewID")
       shinyjs::hide("ContainerManifestIDCheck")
 
-      output$ContainerAction <- renderUI({
+      output$ContainerActionButton <- renderUI({
         actionButton("MoveContainerAction", label = "Move Container")
       })
 
@@ -321,7 +321,7 @@ EditWetlabContainers <- function(session, input, database, output, dbUpdateEvent
       shinyjs::show("ContainerManifestNewID")
       shinyjs::show("ContainerManifestIDCheck")
 
-      output$ContainerAction <- renderUI({
+      output$ContainerActionButton <- renderUI({
         actionButton("RenameContainerAction", label = "Rename Container")
       })
 
@@ -333,7 +333,7 @@ EditWetlabContainers <- function(session, input, database, output, dbUpdateEvent
       shinyjs::hide("ContainerManifestNewID")
       shinyjs::hide("ContainerManifestIDCheck")
 
-      output$ContainerAction <- renderUI({
+      output$ContainerActionButton <- renderUI({
         actionButton("DeleteContainerAction", label = "Delete Container")
       })
     }
